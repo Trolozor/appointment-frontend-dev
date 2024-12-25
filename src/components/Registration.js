@@ -11,10 +11,11 @@ function Registration({ isOpen, onClose, onRegister }) {
     const [role, setRole] = useState('client');
     const [agreement, setAgreement] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [email, setEmail] = useState('');
 
     const handleRegister = async (e) => {
         try {
-            const response = await fetch('http://localhost:8080/api/reg', {
+            const response = await fetch('http://26.66.203.133:8080/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -26,6 +27,7 @@ function Registration({ isOpen, onClose, onRegister }) {
                     name,
                     secondName: surname,
                     thirdName: patronymic,
+                    email,
                     role,
                 }),
             });
@@ -93,6 +95,15 @@ function Registration({ isOpen, onClose, onRegister }) {
                             id="login"
                             value={login}
                             onChange={(e) => setLogin(e.target.value)}
+                        />
+                    </div>
+                    <div className="input-group">
+                        <label htmlFor="login">Почта</label>
+                        <input
+                            type="text"
+                            id="login"
+                            value={login}
+                            onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
                     <div className="input-group">
