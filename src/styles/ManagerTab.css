@@ -1,0 +1,69 @@
+/* Общий стиль для компонента */
+#manager-tab {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Стиль для верхней панели с кнопками и полем поиска */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.search-input {
+    width: 300px;
+    font-size: 16px;
+}
+
+/* Стили для списка пользователей */
+.user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-item {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.user-item:hover {
+    background-color: #e0e0e0;
+}
+
+.user-item span {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Стили для кнопок */
+.ant-btn-primary {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.ant-btn-primary:hover {
+    background-color: #45a049;
+    border-color: #45a049;
+}
+
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    .search-input {
+        width: 200px;
+    }
+
+    .ant-btn-primary {
+        width: 45%;
+    }
+}

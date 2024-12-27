@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import '../styles/Login.css';
+import {useRecoilState} from "recoil";
+import {useSelector} from "react-redux";
+import {setLoggedInUser} from "../store";
 
 function Login({ isOpen, onClose, onLoginSuccess }) {
     const [username, setUsername] = useState('');
@@ -13,7 +16,7 @@ function Login({ isOpen, onClose, onLoginSuccess }) {
         setErrorMessage("");
 
         try {
-            const response = await fetch('http://localhost:8080/api/auth', {
+            const response = await fetch('http://localhost:8080/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -29,6 +32,7 @@ function Login({ isOpen, onClose, onLoginSuccess }) {
                 console.log('JWT Token:', data.token);
 
                 localStorage.setItem('token', data.token);
+                setLoggedInUser(data)
                 onLoginSuccess();
                 onClose();
             } else {

@@ -11,7 +11,7 @@ const DoctorChatTab = () => {
     useEffect(() => {
         const fetchClients = async () => {
             try {
-                const response = await fetch("http://localhost:8080/api/users");
+                const response = await fetch("http://localhost:8080/api/users/clients");
                 if (!response.ok) {
                     throw new Error("Ошибка загрузки списка клиентов.");
                 }

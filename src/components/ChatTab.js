@@ -1,142 +1,192 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { setLoggedInUser, setActiveContact, setChatMessages, addChatMessage } from "../store";
+import { Button, message } from "antd";
+import { getUsers, countNewMessages, findChatMessages, findChatMessage } from "../util/ApiUtil";
+import ScrollToBottom from "react-scroll-to-bottom";
+import "./Chat.css";
+
+var stompClient = null;
 
 const ChatTab = () => {
-    const [doctors, setDoctors] = useState([]);
-    const [selectedDoctor, setSelectedDoctor] = useState(null);
-    const [messages, setMessages] = useState([]);
-    const [inputValue, setInputValue] = useState("");
-    const socketRef = useRef(null);
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const dispatch = useDispatch();
+
+    // Получаем данные из Redux
+    const currentUser = useSelector((state) => state.user.loggedInUser);
+    const activeContact = useSelector((state) => state.chat.chatActiveContact);
+    const messages = useSelector((state) => state.chat.chatMessages);
+
+    const [text, setText] = useState("");
+    const [contacts, setContacts] = useState([]);
+    const userInfo = JSON.parse(localStorage.getItem("userInfo")) || {};
 
     useEffect(() => {
-        const fetchDoctors = async () => {
-            try {
-                const response = await fetch("http://localhost:8080/api/doctors");
-                if (!response.ok) {
-                    throw new Error("Ошибка загрузки списка врачей.");
-                }
-                const data = await response.json();
-                setDoctors(data);
-                console.log(data);
-            } catch (error) {
-                console.error("Ошибка:", error.message);
-            }
-        };
-        fetchDoctors();
+        if (!localStorage.getItem("token")) {
+            return;
+        }
+        connect();
+        loadContacts();
     }, []);
 
     useEffect(() => {
-        if (selectedDoctor) {
-            if (socketRef.current) {
-                socketRef.current.close();
-            }
+        if (!activeContact) return;
+        findChatMessages(activeContact.id, userInfo.id).then((msgs) =>
+            dispatch(setChatMessages(msgs))
+        );
+        loadContacts();
+    }, [activeContact]);
 
-            socketRef.current = new WebSocket(
-                `ws://localhost:8080/chat/client/${userInfo.id}`
+    const connect = () => {
+        const Stomp = require("stompjs");
+        var SockJS = require("sockjs-client");
+        SockJS = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(SockJS);
+        stompClient.connect({}, onConnected, onError);
+    };
+
+    const onConnected = () => {
+        if (stompClient && stompClient.connected) {
+            stompClient.subscribe(
+                "/user/" + userInfo.id + "/queue/messages",
+                onMessageReceived
             );
-
-            socketRef.current.onopen = () => {
-                console.log(`Соединение установлено с врачом: ${selectedDoctor.name}`);
-            };
-
-            socketRef.current.onmessage = (event) => {
-                let message;
-
-                try {
-                    message = JSON.parse(event.data);
-                    console.log("Получено сообщение в формате JSON:", message);
-                    setMessages((prevMessages) => [
-                        ...prevMessages,
-                        { sender: "doctor", text: message.message },
-                    ]);
-                } catch (error) {
-                    console.log("Получено сообщение как строка:", event.data);
-                    setMessages((prevMessages) => [
-                        ...prevMessages,
-                        { sender: "doctor", text: event.data },
-                    ]);
-                }
-            };
-
-            socketRef.current.onclose = () => {
-                console.log(`Соединение закрыто с врачом: ${selectedDoctor.name}`);
-            };
-
-            return () => {
-                if (socketRef.current) {
-                    socketRef.current.close();
-                }
-            };
-        }
-    }, [selectedDoctor]);
-
-    const sendMessage = () => {
-        if (!inputValue.trim()) return;
-
-        const message = {
-            targetId: selectedDoctor.id,
-            message: inputValue,
-        };
-
-        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify(message));
-            console.log("Сообщение отправлено:", message);
-
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                { sender: "client", text: inputValue },
-            ]);
-
-            setInputValue("");
+            console.log("Successfully subscribed to /user/" + userInfo.id + "/queue/messages");
         } else {
-            console.error("WebSocket соединение не открыто. Сообщение не может быть отправлено.");
+            console.warn("Connection is not established yet. Retrying...");
+            setTimeout(onConnected, 1000);
         }
     };
 
+    const onError = (err) => {
+
+    };
+
+    const onMessageReceived = (msg) => {
+        const notification = JSON.parse(msg.body);
+
+        if (activeContact && activeContact.id === notification.senderId) {
+            findChatMessage(notification.id).then((message) => {
+                dispatch(addChatMessage(message));
+            });
+        } else {
+            message.info("Received a new message from " + notification.senderName);
+        }
+        loadContacts();
+    };
+
+    const sendMessage = (msg) => {
+        if (msg.trim() !== "") {
+            const message = {
+                senderId: userInfo.id,
+                recipientId: activeContact.id,
+                senderName: userInfo.name,
+                recipientName: activeContact.name,
+                content: msg,
+                timestamp: new Date(),
+            };
+            stompClient.send("/app/chat", {}, JSON.stringify(message));
+            dispatch(addChatMessage(message));
+        }
+    };
+
+    const loadContacts = async () => {
+        try {
+            const users = await getUsers(userInfo.roles[0]);
+            const enrichedUsers = await Promise.all(
+                users.map(async (contact) => {
+                    const count = await countNewMessages(contact.id, userInfo.id);
+                    return { ...contact, newMessages: count };
+                })
+            );
+            setContacts(enrichedUsers);
+            if (!activeContact && enrichedUsers.length > 0) {
+                dispatch(setActiveContact(enrichedUsers[0]));
+            }
+        } catch (err) {
+            console.error("Error loading contacts:", err);
+        }
+    };
+
+    const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
     return (
-        <div className="chat-tab">
-            <div className="doctor-list">
-                <h3>Список врачей</h3>
-                <ul>
-                    {doctors.map((doctor) => (
-                        <li
-                            key={doctor.id}
-                            className={selectedDoctor?.id === doctor.id ? "selected" : ""}
-                            onClick={() => setSelectedDoctor(doctor)}
-                        >
-                            {doctor.name}
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            <div className="chat-window">
-                {selectedDoctor ? (
-                    <>
-                        <h3>Чат с {selectedDoctor.name}</h3>
-                        <div className="messages">
-                            {messages.map((msg, index) => (
-                                <p
-                                    key={index}
-                                    className={msg.sender === "client" ? "client-message" : "doctor-message"}
+        <div id="frame">
+            <div id="sidepanel">
+                <div id="profile">
+                    <div className="wrap">
+                        <p>{userInfo.name}</p>
+                    </div>
+                </div>
+                <div id="contacts">
+                    <ul>
+                        {contacts && contacts.length > 0 ? (
+                            contacts.map((contact) => (
+                                <li
+                                    key={contact.id}
+                                    onClick={() => dispatch(setActiveContact(contact))}
+                                    className={
+                                        activeContact && contact.id === activeContact.id
+                                            ? "contact active"
+                                            : "contact"
+                                    }
                                 >
-                                    {msg.text}
-                                </p>
-                            ))}
-                        </div>
-                        <div className="message-input">
-                            <input
-                                type="text"
-                                placeholder="Введите сообщение..."
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                            />
-                            <button onClick={sendMessage}>Отправить</button>
-                        </div>
-                    </>
-                ) : (
-                    <p>Выберите врача для начала чата</p>
-                )}
+                                    <div className="wrap">
+                                        <span className="contact-status online"></span>
+                                        <div className="meta">
+                                            <p className="name">{contact.name} {contact.secondName}</p>
+                                            {contact.newMessages > 0 && (
+                                                <p className="preview">{contact.newMessages} Новое сообщение</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </li>
+                            ))
+                        ) : (
+                            <p>Нет доступных контактов</p>
+                        )}
+                    </ul>
+                </div>
+            </div>
+            <div className="content">
+                <ScrollToBottom className="messages">
+                    <ul>
+                        {Array.isArray(sortedMessages) && sortedMessages.length > 0 ? (
+                            sortedMessages.map((msg) => (
+                                <li
+                                    key={msg.id}
+                                    className={msg.senderId === userInfo.id ? "sent" : "replies"}
+                                >
+                                    <p>{msg.content}</p>
+                                </li>
+                            ))
+                        ) : (
+                            <p>Сообщений нет</p>
+                        )}
+                    </ul>
+
+                </ScrollToBottom>
+                <div className="message-input">
+                    <input
+                        type="text"
+                        placeholder="Введите сообщение..."
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                                sendMessage(text);
+                                setText("");
+                            }
+                        }}
+                    />
+                    <Button
+                        onClick={() => {
+                            sendMessage(text);
+                            setText("");
+                        }}
+                    >
+                        Отправить
+                    </Button>
+                </div>
             </div>
         </div>
     );

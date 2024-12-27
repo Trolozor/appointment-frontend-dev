@@ -9,8 +9,8 @@ import PatientMedicalRecordsTab from "../components/PatientMedicalRecordsTab";
 import ManageSchedulesTab from "../components/ManageSchedulesTab";
 import WorkloadStatsTab from "../components/WorkloadStatsTab";
 import ApplicationsTab from "../components/ApplicationsTab";
+import ManagerTab from "../components/ManagerTab"
 import {useNavigate} from "react-router-dom";
-import DoctorChatTab from "../components/DoctorChatTab";
 
 function Dashboard() {
     const [activeTab, setActiveTab] = useState(1);
@@ -26,7 +26,7 @@ function Dashboard() {
             const token = localStorage.getItem('token');
             if (!token) throw new Error("Токен не найден");
 
-            const response = await fetch('http://localhost:8080/api/info', {
+            const response = await fetch('http://localhost:8080/api/users/info', {
                 method: 'GET',
                 headers: {
                     Authorization: `${token}`,
@@ -93,12 +93,13 @@ function Dashboard() {
             Доктор: [
                 { id: 2, label: "Расписание", component: <DoctorScheduleTab /> },
                 { id: 3, label: "Медицинские карты пациентов", component: <PatientMedicalRecordsTab /> },
-                { id: 4, label: "Онлайн чат", component: <DoctorChatTab /> },
+                { id: 4, label: "Онлайн чат", component: <ChatTab /> },
             ],
             Менеджер: [
                 { id: 2, label: "Расписание врачей", component: <ManageSchedulesTab /> },
                 { id: 3, label: "Статистика нагрузки", component: <WorkloadStatsTab /> },
                 { id: 4, label: "Заявки", component: <ApplicationsTab /> },
+                { id: 5, label: "Панель назначения", component: <ManagerTab /> },
             ],
         };
 

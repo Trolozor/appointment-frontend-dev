@@ -15,7 +15,7 @@ function Registration({ isOpen, onClose, onRegister }) {
 
     const handleRegister = async (e) => {
         try {
-            const response = await fetch('http://26.66.203.133:8080/api/auth/register', {
+            const response = await fetch('http://localhost:8080/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -28,7 +28,6 @@ function Registration({ isOpen, onClose, onRegister }) {
                     secondName: surname,
                     thirdName: patronymic,
                     email,
-                    role,
                 }),
             });
 
@@ -51,12 +50,6 @@ function Registration({ isOpen, onClose, onRegister }) {
         <div className="modal">
             <div className="modal-content">
                 <h2>Регистрация</h2>
-
-                <div className="role-buttons">
-                    <button onClick={() => setRole('client')} className={role === 'client' ? 'active' : ''}>Клиент</button>
-                    <button onClick={() => setRole('doctor')} className={role === 'doctor' ? 'active' : ''}>Врач</button>
-                    <button onClick={() => setRole('manager')} className={role === 'manager' ? 'active' : ''}>Менеджер</button>
-                </div>
 
                 {errorMessage && <div className="error-message">{errorMessage}</div>}
 
@@ -102,7 +95,7 @@ function Registration({ isOpen, onClose, onRegister }) {
                         <input
                             type="text"
                             id="login"
-                            value={login}
+                            value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
